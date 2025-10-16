@@ -1,98 +1,120 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import MovieCard from "@/components/MovieCard";
+import SearchBar from "@/components/SearchBar";
+import TrendingCard from "@/components/TrendingCard";
+import { fetchMovies } from "@/services/api";
+import { getTrendingMovies, updateSearchCount } from "@/services/appwrite";
+import useFetch from "@/services/useFetch";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { icons } from "../../constants/icons";
+import { images } from "../../constants/images";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function Index() {
+  const [searchValue, setSearchValue] = useState("");
 
-export default function HomeScreen() {
+  const { data: trendingMovies, loading: trendingLoading } = useFetch(
+    () => getTrendingMovies(),
+    true
+  );
+  const {
+    data: movies,
+    loading,
+    error,
+    refetch,
+  } = useFetch(() => fetchMovies({ query: searchValue.toLowerCase() }), true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      refetch();
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [searchValue]);
+
+  useEffect(() => {
+    if (searchValue.trim() && movies?.length > 0) {
+      updateSearchCount(searchValue, movies[0]);
+    }
+  }, [movies]);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View className="flex-1 bg-primary">
+      {/* الخلفية */}
+      <Image
+        source={images.bg}
+        className="absolute w-full h-full z-0"
+        resizeMode="cover"
+      />
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      {/* المحتوى القابل للتمرير */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
+        <Image
+          source={icons.logo}
+          className="w-20 h-16 mt-20 mb-5 self-center"
+          resizeMode="contain"
+        />
+
+        <View className="px-5">
+          <SearchBar
+            placeholder="Search for a movie"
+            value={searchValue}
+            onChangeText={setSearchValue}
+          />
+        </View>
+
+        {trendingMovies && searchValue.length < 1 && (
+          <View className="mt-10 px-5">
+            <Text className="text-lg text-white font-bold mb-3">
+              Trending Movies
+            </Text>
+            <FlatList
+              horizontal
+              data={trendingMovies}
+              keyExtractor={(item) => item.movie_id.toString()}
+              renderItem={({ item, index }) => (
+                <TrendingCard movie={item} index={index} />
+              )}
+              contentContainerStyle={{ gap: 20 }}
+              showsHorizontalScrollIndicator={false}
+            />
+          </View>
+        )}
+
+        <Text className="text-lg text-white font-bold px-5 mt-8 mb-3">
+          {searchValue ? "Search Results" : "Latest Movies"}
+        </Text>
+
+        {loading ? (
+          <View className="flex justify-center items-center py-10">
+            <ActivityIndicator size="large" color="#00f" />
+          </View>
+        ) : (
+          <FlatList
+            data={movies}
+            keyExtractor={(item, index) =>
+              item.id?.toString() || index.toString()
+            }
+            numColumns={3}
+            renderItem={({ item }) => <MovieCard {...item} />}
+            columnWrapperStyle={{
+              justifyContent: "flex-start",
+              gap: 20,
+              marginBottom: 15,
+              paddingHorizontal: 10,
+            }}
+            scrollEnabled={false} // ✅ خليها false عشان ScrollView هو اللي يتحكم في السحب
+          />
+        )}
+      </ScrollView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
