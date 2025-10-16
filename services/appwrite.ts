@@ -15,7 +15,7 @@ export const updateSearchCount = async (query: string, movie: Movie) => {
       Query.equal("searchTerm", query),
     ]);
 
-    console.log("Documents found:", result);
+  
     if (result.documents.length > 0) {
       const existingMovie = result.documents[0];
       await databases.updateDocument(
@@ -48,7 +48,6 @@ export const getTrendingMovies = async (): Promise<
       Query.limit(10),
       Query.orderDesc("count"),
     ]);
-    console.log(result);
     return result.documents as unknown as TrendingMovie[];
   } catch (error) {
     console.error("Error fetching documents:", error);
